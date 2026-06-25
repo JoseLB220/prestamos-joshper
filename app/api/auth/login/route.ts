@@ -1,0 +1,65 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { query } from "@/lib/pg"
+import { comparePassword, generateToken } from "@/lib/auth"
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { email, password } = body
+
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email y contraseña son requeridos" }, { status: 400 })
+    }
+
+    const result = await query(
+      `SELECT id, nombre, apellido, email, cedula_pasaporte, is_admin,
+              can_request_loans, can_associate_companies, password
+      FROM users
+      WHERE email = $1`,
+      [email]
+    )
+
+    const user = result.rows[0]
+
+    if (!user) {
+      return NextResponse.json({ error: "Email o contraseña incorrectos" }, { status: 401 })
+    }
+
+    if (!comparePassword(password, user.password)) {
+      return NextResponse.json({ error: "Email o contraseña incorrectos" }, { status: 401 })
+    }
+
+    delete user.password
+
+    const token = generateToken(user)
+
+    const response = NextResponse.json({
+      message: "Inicio de sesión exitoso",
+      user: {
+        id: user.id,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        email: user.email,
+        is_admin: Boolean(user.is_admin),
+        can_request_loans: Boolean(user.can_request_loans),
+        can_associate_companies: Boolean(user.can_associate_companies),
+      },
+    })
+
+    response.cookies.set("auth-token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60, // 7 días
+      path: "/",
+    })
+
+    return response
+  } catch (error) {
+    console.error("Login error:", error)
+    return NextResponse.json(
+      { error: "Error interno del servidor. Por favor intenta nuevamente." },
+      { status: 500 }
+    )
+  }
+}
