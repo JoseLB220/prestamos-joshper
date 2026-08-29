@@ -366,15 +366,13 @@ export default function ProfileForm({ user }: ProfileFormProps) {
                         - a full URL (http/https)
                         - a data URL (data:image/png;base64,...)
                         - a path like '/uploads/...' or just a filename
-                        We must avoid prefixing the images service host to data URLs (which caused
-                        the browser to request '/data:...'). Use the value directly if it starts
-                        with 'http' or 'data:', otherwise prefix the images service.
+                        Use full and data URLs directly; upload paths are served by this origin.
                       */}
                       <img
                         src={
                           profile.documento_foto.startsWith("http") || profile.documento_foto.startsWith("data:")
                             ? profile.documento_foto
-                            : `http://localhost:8081${profile.documento_foto.startsWith("/") ? profile.documento_foto : `/${profile.documento_foto}`}`
+                            : `${profile.documento_foto.startsWith("/") ? profile.documento_foto : `/uploads/${profile.documento_foto}`}`
                         }
                         alt="Foto del Documento"
                         className="max-w-xs h-auto rounded-lg border border-gray-300"

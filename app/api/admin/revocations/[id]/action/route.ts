@@ -13,19 +13,32 @@ export async function POST(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
+    const body = await req.json()
+    const { action } = body // 'confirm', 'restore' or 'cancel'
+    const revocationId = parseInt(params.id)
+
+    if (!action || !["confirm", "restore", "cancel"].includes(action)) {
+      return NextResponse.json(
+        { message: "Invalid action. Must be 'confirm', 'restore' or 'cancel'" },
+        { status: 400 }
+      )
+    }
+
+    const client = await getClient()
+
     if (action === "cancel") {
       // Cancel a pending revocation so it never takes effect
-      const getRevocationQuery = `SELECT * FROM revocations WHERE id = $1`;
-      const revocationResult = await client.query(getRevocationQuery, [revocationId]);
+      const getRevocationQuery = `SELECT * FROM revocations WHERE id = $1`
+      const revocationResult = await client.query(getRevocationQuery, [revocationId])
       if (revocationResult.rows.length === 0) {
-        if (typeof client.release === "function") client.release();
-        return NextResponse.json({ message: "Revocation not found" }, { status: 404 });
+        if (typeof client.release === "function") client.release()
+        return NextResponse.json({ message: "Revocation not found" }, { status: 404 })
       }
 
-      const revocation = revocationResult.rows[0];
+      const revocation = revocationResult.rows[0]
       if (revocation.status !== 'pending') {
-        if (typeof client.release === "function") client.release();
-        return NextResponse.json({ message: 'Only pending revocations can be cancelled' }, { status: 409 });
+        if (typeof client.release === "function") client.release()
+        return NextResponse.json({ message: 'Only pending revocations can be cancelled' }, { status: 409 })
       }
 
       const cancelReason = (body && body.reason) ? String(body.reason).trim() : null
@@ -43,22 +56,9 @@ export async function POST(
         console.error('Failed to notify admins about cancelled revocation', e)
       }
 
-      if (typeof client.release === "function") client.release();
+      if (typeof client.release === "function") client.release()
       return NextResponse.json(result.rows[0])
     }
-
-    const body = await req.json()
-    const { action } = body // 'confirm', 'restore' or 'cancel'
-    const revocationId = parseInt(params.id)
-
-    if (!action || !["confirm", "restore", "cancel"].includes(action)) {
-      return NextResponse.json(
-        { message: "Invalid action. Must be 'confirm' or 'restore'" },
-        { status: 400 }
-      )
-    }
-
-    const client = await getClient()
 
     if (action === "confirm") {
       // Apply the revocation action and mark as confirmed

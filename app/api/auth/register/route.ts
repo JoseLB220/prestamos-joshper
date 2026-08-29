@@ -3,35 +3,39 @@ import { query } from "@/lib/pg"
 import { hashPassword } from "@/lib/auth"
 import saveDataUrlToPublicUploads from '@/lib/saveDataUrl'
 import uploadDataUrlToCloudinary from '@/lib/cloudinary'
+import { userRegisterSchema, formatZodError } from "@/lib/validations/schemas"
+import { logger } from "@/lib/logger"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+
+    // Validar payload con Zod
+    const validation = userRegisterSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: formatZodError(validation.error) },
+        { status: 400 }
+      )
+    }
+
     const {
       nombre,
       apellido,
       email,
       cedula_pasaporte,
-      numero_celular,
+      telefono,
       password,
       documento_foto,
-    } = body
+    } = validation.data
 
-    console.log("Registration attempt for:", email)
+    const numero_celular = telefono || body.numero_celular || null
 
-    // Validaciones básicas
-    if (!nombre || !apellido || !email || !cedula_pasaporte || !numero_celular || !password || !documento_foto) {
+    if (!cedula_pasaporte || !documento_foto) {
       return NextResponse.json({ error: "Todos los campos son requeridos, incluyendo la foto del documento" }, { status: 400 })
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: "Formato de email inválido" }, { status: 400 })
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 })
-    }
+    logger.info(`Intento de registro para: ${email}`)
 
     // Verifica si ya existe un usuario con ese email o documento
     const existingUser = await query(
@@ -44,20 +48,17 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = hashPassword(password)
 
-    // Prepare documento_foto value to save. Prefer local file save to images container, then Cloudinary, then data URL as fallback.
     let documentoFotoToSave: string | null = documento_foto || null
     if (typeof documentoFotoToSave === 'string' && documentoFotoToSave.startsWith('data:image')) {
-      // try to save in uploads directory for images container
       const saved = await saveDataUrlToPublicUploads(documentoFotoToSave, 'doc')
       if (saved) {
         documentoFotoToSave = saved
       } else {
-        // Fallback to Cloudinary if configured
         const cloudUrl = await uploadDataUrlToCloudinary(documentoFotoToSave)
         if (cloudUrl) {
           documentoFotoToSave = cloudUrl
         } else {
-          documentoFotoToSave = documento_foto // fallback to storing data URL in DB
+          documentoFotoToSave = documento_foto
         }
       }
     }
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
       ]
     )
 
-    console.log("User registered successfully with ID:", result.rows[0].id)
+    logger.info(`Usuario registrado exitosamente con ID: ${result.rows[0].id}`)
 
     return NextResponse.json(
       {
@@ -89,8 +90,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error) {
-    console.error("Registration error:", error)
+  } catch (error: any) {
+    logger.error("Error en registro:", { error: error.message || error, stack: error.stack })
     return NextResponse.json(
       { error: "Error interno del servidor. Por favor intenta nuevamente." },
       { status: 500 }

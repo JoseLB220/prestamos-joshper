@@ -1,15 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/pg"
 import { comparePassword, generateToken } from "@/lib/auth"
+import { userLoginSchema, formatZodError } from "@/lib/validations/schemas"
+import { logger } from "@/lib/logger"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password } = body
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email y contraseña son requeridos" }, { status: 400 })
+    // Validar con Zod
+    const validation = userLoginSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: formatZodError(validation.error) },
+        { status: 400 }
+      )
     }
+
+    const { email, password } = validation.data
 
     const result = await query(
       `SELECT id, nombre, apellido, email, cedula_pasaporte, is_admin,
@@ -54,9 +62,10 @@ export async function POST(request: NextRequest) {
       path: "/",
     })
 
+    logger.info(`Inicio de sesión exitoso para usuario ID: ${user.id} (${user.email})`)
     return response
-  } catch (error) {
-    console.error("Login error:", error)
+  } catch (error: any) {
+    logger.error("Error en login:", { error: error.message || error, stack: error.stack })
     return NextResponse.json(
       { error: "Error interno del servidor. Por favor intenta nuevamente." },
       { status: 500 }

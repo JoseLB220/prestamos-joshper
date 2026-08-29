@@ -14,8 +14,7 @@ export async function saveDataUrlToPublicUploads(dataUrl: string, prefix = "img"
     const base64 = match[3]
     const buffer = Buffer.from(base64, "base64")
 
-    // Save to Docker container volume instead of local public/uploads
-    // The joshper-images container will serve these files
+    // Save to the shared uploads volume served by the reverse proxy.
     const uploadsDir = path.join(process.cwd(), "uploads", prefix)
     console.log("Uploads directory:", uploadsDir)
     await fs.mkdir(uploadsDir, { recursive: true })
@@ -25,8 +24,8 @@ export async function saveDataUrlToPublicUploads(dataUrl: string, prefix = "img"
     console.log("Saving file to:", filePath)
     await fs.writeFile(filePath, buffer)
 
-    // Return full URL for the images service
-    const fullUrl = `http://localhost:8081/uploads/${prefix}/${filename}`
+    // A relative URL works in every deployment and goes through the unified proxy.
+    const fullUrl = `/uploads/${prefix}/${filename}`
     console.log("File saved successfully, full URL:", fullUrl)
     return fullUrl
   } catch (err) {

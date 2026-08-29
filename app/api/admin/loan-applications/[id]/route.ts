@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin, getUserFromRequest } from "@/lib/auth"
 import { query } from "@/lib/pg"
 import { getClient } from "@/lib/pg"
+import { sendLoanStatusUpdateEmail } from "@/lib/email"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   const client = await getClient()
@@ -80,6 +81,23 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         // Use 'admin_comment' for rejection notifications so frontend shows the denial modal (matches payment rejection)
         const notifType = (estado === 'rechazado') ? 'admin_comment' : 'application_status'
         await query(`INSERT INTO notifications (user_id, loan_id, type, message) VALUES ($1, $2, $3, $4)`, [loan.user_id, id, notifType, finalMessage])
+
+        // Enviar email transaccional al usuario
+        try {
+          const userRes = await query(`SELECT email, nombre FROM users WHERE id = $1 LIMIT 1`, [loan.user_id])
+          const loanUser = userRes.rows[0]
+          if (loanUser?.email && (estado === 'aprobado' || estado === 'rechazado')) {
+            sendLoanStatusUpdateEmail({
+              to: loanUser.email,
+              nombre: loanUser.nombre || 'Cliente',
+              monto: Number(loanSummary.monto || 0),
+              estado: estado as 'aprobado' | 'rechazado',
+              motivo: reason,
+            }).catch((err) => console.error("Error al enviar email de estado de préstamo:", err))
+          }
+        } catch (mailErr) {
+          console.error("Error enviando email de estado:", mailErr)
+        }
       }
     } catch (e) {
       console.error('Error creating notification for status change', e)

@@ -43,8 +43,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         let filePathToCheck = null
 
         if (typeof docFoto === 'string' && docFoto.startsWith('http://localhost:8081/uploads/')) {
-          // Extract path from full URL
+          // Normalize values written before uploads were served by the unified proxy.
           const relativePath = docFoto.replace('http://localhost:8081', '')
+          user.documento_foto = relativePath
           filePathToCheck = path.join(process.cwd(), relativePath.replace(/^\//, ''))
         } else if (typeof docFoto === 'string' && docFoto.startsWith('/uploads')) {
           filePathToCheck = path.join(process.cwd(), docFoto.replace(/^\//, ''))
@@ -56,9 +57,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         if (filePathToCheck) {
           try {
             await fs.promises.access(filePathToCheck, fs.constants.R_OK)
-            // file exists, ensure it's a full URL
-            if (!docFoto.startsWith('http://localhost:8081/')) {
-              user.documento_foto = `http://localhost:8081${docFoto.startsWith('/') ? docFoto : '/uploads/' + docFoto}`
+            // Keep upload paths relative so they use the current proxy origin.
+            if (!docFoto.startsWith('http')) {
+              user.documento_foto = docFoto.startsWith('/') ? docFoto : '/uploads/' + docFoto
             }
           } catch (err) {
             // file missing — clear the field so frontend shows placeholder

@@ -1,7 +1,7 @@
 // Filepath: app/api/admin/payments/pending/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth"
-import pool from "@/lib/postgres"
+import pool from "@/lib/pg"
 
 // Admin pending payments uses DB and requires admin auth; run in Node runtime
 export const runtime = 'nodejs'

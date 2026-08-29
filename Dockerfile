@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 
 # Etapa deps: instala dependencias necesarias para compilar dependencias de Node
 FROM base AS deps
-RUN apk add --no-cache libc6-compat python3 make g++
+RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
@@ -33,7 +33,6 @@ RUN addgroup --system --gid 1001 nodejs \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/data ./data
 ## Ensure su-exec is available to drop privileges at container runtime
 RUN apk add --no-cache su-exec
 

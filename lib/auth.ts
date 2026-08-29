@@ -5,20 +5,16 @@ import { query } from "@/lib/pg"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
+if (process.env.NODE_ENV === "production" && JWT_SECRET === "your-secret-key") {
+  console.warn("⚠️ ADVERTENCIA DE SEGURIDAD: JWT_SECRET está usando el valor por defecto en producción. Por favor define una clave segura en las variables de entorno.")
+}
+
 export function hashPassword(password: string): string {
   return bcrypt.hashSync(password, 10)
 }
 
 export function comparePassword(password: string, hash: string): boolean {
-  // Hash oficial para admin123
-  const adminHash = "$2b$10$s3UquVREldGmbZ2LuKcvEuKtwkMfe3oRWxEIKM0lFhy9l2mCRB9OS"
-
-  // Si el hash coincide con el del admin y la contraseña es "admin123"
-  if (hash === adminHash && password === "admin123") {
-    return true
-  }
-
-  // Comparación normal para otros usuarios
+  if (!password || !hash) return false
   return bcrypt.compareSync(password, hash)
 }
 

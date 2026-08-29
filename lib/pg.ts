@@ -1,36 +1,52 @@
-import { Pool } from "pg"
+import { Pool, type PoolClient, type QueryResult } from "pg"
 
-// Lazy pool initialization to avoid attempts to connect at import/build time.
-let pool: Pool | null = null
+// Declaración global para evitar múltiples pools en entornos con Hot-Reload (Next.js)
+const globalForPg = globalThis as unknown as {
+  pgPool: Pool | undefined
+}
 
 function ensurePool(): Pool {
-  if (pool) return pool
+  if (globalForPg.pgPool) {
+    return globalForPg.pgPool
+  }
+
   const conn = process.env.DATABASE_URL
   if (!conn) {
-    // Throw a clear, high-level error so callers can handle it and build-time
-    // exports don't attempt low-level SASL auth with an invalid client.
     throw new Error(
       "DATABASE_URL is not set. Database access is disabled in this environment."
     )
   }
-  pool = new Pool({ connectionString: conn })
+
+  const isRemote = conn.includes("supabase.co") || conn.includes("supabase.com") || conn.includes("sslmode=require") || process.env.NODE_ENV === "production"
+
+  const pool = new Pool({
+    connectionString: conn,
+    max: parseInt(process.env.DB_POOL_MAX || "20", 10), // Conexiones concurrentes máximas
+    idleTimeoutMillis: 30000, // Cerrar conexiones inactivas tras 30s
+    connectionTimeoutMillis: 10000, // Timeout para obtener conexión de 10s
+    ssl: isRemote ? { rejectUnauthorized: false } : undefined,
+  })
+
+  // Manejo de errores imprevistos en clientes inactivos del pool
+  pool.on("error", (err: any) => {
+    console.error("Unexpected error on idle PostgreSQL client", err)
+  })
+
+  globalForPg.pgPool = pool
   return pool
 }
 
-// Nueva función getClient para transacciones
-export async function getClient() {
+// Obtener un cliente del pool (necesario para transacciones manuales: BEGIN / COMMIT / ROLLBACK)
+export async function getClient(): Promise<PoolClient> {
   const p = ensurePool()
   return await p.connect()
 }
 
-// Función query existente para consultas simples
-export async function query(sql: string, params?: any[]) {
+// Ejecución directa de consultas optimizada (el pool maneja adquisición y liberación interna)
+export async function query(sql: string, params?: any[]): Promise<QueryResult<any>> {
   const p = ensurePool()
-  const client = await p.connect()
-  try {
-    const res = await client.query(sql, params)
-    return res
-  } finally {
-    client.release()
-  }
+  return await p.query(sql, params)
 }
+
+// Default export para compatibilidad con código que importa `pool`
+export default { query, getClient }

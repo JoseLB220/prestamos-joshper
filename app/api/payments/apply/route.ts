@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getClient } from "@/lib/pg"
 import { getUserFromRequest } from "@/lib/auth"
+import { logger } from "@/lib/logger"
+import { sendPaymentConfirmedEmail } from "@/lib/email"
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,8 +10,6 @@ export const dynamic = 'force-dynamic'
 /**
  * POST /api/payments/apply
  * Body: { loanId: number, amount: number, notes?: string, applyAs?: 'installment'|'partial'|'full', userId?: number }
- * - Only admins may specify userId or apply to loans that are not theirs.
- * - This endpoint immediately inserts a payment with status 'paid', generates an invoice and updates loan next_payment_date.
  */
 export async function POST(request: NextRequest) {
   const client = await getClient()
@@ -29,8 +29,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 })
     }
 
-    // Detect if the invoices table has the collected_by column.
-    // Do this before starting a transaction to avoid a failed statement aborting the transaction.
     const colInfo = await client.query(
       "SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'collected_by' LIMIT 1"
     )
@@ -45,7 +43,6 @@ export async function POST(request: NextRequest) {
     }
 
     const loan = loanRes.rows[0]
-    // Authorization: actor must be owner or admin
     if (loan.user_id !== actor.id && !actor.is_admin) {
       await client.query('ROLLBACK')
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
@@ -53,7 +50,6 @@ export async function POST(request: NextRequest) {
 
     const payerId = actor.is_admin && specifiedUserId ? specifiedUserId : actor.id
 
-    // Compute remaining amount
     const paidSumRes = await client.query('SELECT COALESCE(SUM(amount), 0) AS paid FROM payments WHERE loan_id = $1 AND status = $2', [loanId, 'paid'])
     const paidSoFar = parseFloat(paidSumRes.rows[0]?.paid || 0)
     const remaining = parseFloat(loan.monto) - paidSoFar
@@ -73,16 +69,13 @@ export async function POST(request: NextRequest) {
 
     const paymentId = insertRes.rows[0].id
 
-    // If payment completes the loan, optionally clear next_payment_date
     if (amount >= remaining) {
       try {
         await client.query('UPDATE loan_applications SET next_payment_date = NULL, updated_at = NOW() WHERE id = $1', [loanId])
       } catch (e) {
-        // non-fatal
-        console.error('Error clearing next_payment_date after full payment', e)
+        logger.error('Error clearing next_payment_date after full payment', e)
       }
     } else {
-      // Advance next_payment_date according to frequency by one unit
       try {
         const freq = (loan.frecuencia || 'mensual').toString().toLowerCase()
         const base = loan.next_payment_date ? new Date(loan.next_payment_date) : new Date()
@@ -91,18 +84,16 @@ export async function POST(request: NextRequest) {
         else nextDate.setMonth(nextDate.getMonth() + 1)
         await client.query('UPDATE loan_applications SET next_payment_date = $1, updated_at = NOW() WHERE id = $2', [nextDate.toISOString(), loanId])
       } catch (e) {
-        console.error('Error updating next_payment_date after partial payment', e)
+        logger.error('Error updating next_payment_date after partial payment', e)
       }
     }
 
-    // Generate invoice
     const invRes = await client.query('SELECT generate_invoice_number() as number')
     const invoiceNumber = invRes.rows[0].number
 
     const loanInfo = await client.query('SELECT empresa FROM loan_applications WHERE id = $1', [loanId])
     const empresa = loanInfo.rows[0]?.empresa || `Préstamo #${loanId}`
 
-    // Record who collected the payment (if admin) in collected_by (only if column exists)
     const collectedBy = actor.is_admin ? actor.id : null
 
     let invoiceId: number | null = null
@@ -115,7 +106,6 @@ export async function POST(request: NextRequest) {
       )
       invoiceId = invoiceInsert.rows[0]?.id
     } else {
-      // Fallback for older schemas without collected_by column
       const invoiceInsert = await client.query(
         `INSERT INTO invoices (invoice_number, user_name, user_lastname, user_email, user_phone, payment_amount, payment_type, payment_date, loan_id, company_name, admin_notes, user_id)
          SELECT $1, u.nombre, u.apellido, u.email, u.numero_celular, $2, $3, $4, $5, $6, $7, u.id
@@ -125,14 +115,28 @@ export async function POST(request: NextRequest) {
       invoiceId = invoiceInsert.rows[0]?.id
     }
 
-    // Create notification for loan owner
     try {
       await client.query('INSERT INTO notifications (user_id, loan_id, type, message) VALUES ($1, $2, $3, $4)', [loan.user_id, loanId, 'payment_due', `Se registró un pago de ${amount} para tu préstamo (${empresa}).`])
     } catch (e) {
-      console.error('Error creating notification', e)
+      logger.error('Error creating notification for payment', e)
     }
 
-    // Insert an audit_log entry for this manual payment if the audit_log table exists
+    // Enviar email transaccional al usuario
+    try {
+      const payerRes = await client.query('SELECT email, nombre FROM users WHERE id = $1 LIMIT 1', [payerId])
+      const payerUser = payerRes.rows[0]
+      if (payerUser?.email) {
+        sendPaymentConfirmedEmail({
+          to: payerUser.email,
+          nombre: payerUser.nombre || 'Cliente',
+          monto: amount,
+          saldoRestante: Math.max(0, remaining - amount),
+        }).catch((err) => logger.error("Error al enviar email de confirmación de pago:", err))
+      }
+    } catch (mailErr) {
+      logger.error("Error obteniendo datos para email de pago:", mailErr)
+    }
+
     try {
       const tbl = await client.query(
         "SELECT 1 FROM information_schema.tables WHERE table_name = 'audit_log' LIMIT 1"
@@ -151,23 +155,20 @@ export async function POST(request: NextRequest) {
            VALUES ($1, $2, $3, $4, $5::jsonb, NOW())`,
           [actor.id, 'INSERT', 'payments', paymentId, JSON.stringify(auditPayload)]
         )
-      } else {
-        // audit_log not present; skip silently to avoid noisy errors in logs
-        console.warn('audit_log table not found; skipping audit insert for payment', paymentId)
       }
-    } catch (e) {
-      // Non-fatal: log a concise message but avoid dumping full PG stack in normal flows
-      console.error('Error inserting audit_log for manual payment:', (e as Error).message)
+    } catch (e: any) {
+      logger.error('Error inserting audit_log for manual payment:', { error: e.message || e })
     }
 
     await client.query('COMMIT')
+    logger.info(`Pago aplicado exitosamente ID ${paymentId} para préstamo #${loanId} por actor ID ${actor.id}`)
 
     return NextResponse.json({ success: true, paymentId, invoiceId })
   } catch (error: any) {
     await client.query('ROLLBACK')
-    console.error('Error applying payment:', error)
+    logger.error('Error al aplicar pago:', { error: error.message || error, stack: error.stack })
     return NextResponse.json({ error: 'Error interno al aplicar pago' }, { status: 500 })
   } finally {
-    // release handled by getClient internals if applicable
+    if (typeof client.release === 'function') client.release()
   }
 }

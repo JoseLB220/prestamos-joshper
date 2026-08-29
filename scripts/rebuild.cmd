@@ -19,7 +19,6 @@ if not exist .env (
     echo DB_NAME=joshperdb> .env
     echo DB_USER=postgres>> .env
     echo DB_PASSWORD=postgres>> .env
-    echo IMAGES_URL=http://localhost:8081>> .env
     echo APP_URL=http://localhost:8080>> .env
     echo JWT_SECRET=your-super-secret-jwt-key-change-this-in-production>> .env
 )
@@ -35,8 +34,7 @@ docker-compose ps
 
 echo.
 echo Accesos:
-echo   Aplicación: http://localhost:8080
-echo   Imágenes:   http://localhost:8081
-echo   Base datos: localhost:5433
+echo   Aplicación y Archivos: http://localhost:8080
+echo   Base de datos:         localhost:5433
 echo.
 echo Para ver los logs use: docker-compose logs -f

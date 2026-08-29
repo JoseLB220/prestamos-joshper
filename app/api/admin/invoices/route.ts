@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { verifyToken } from "@/lib/auth"
-import { query } from "@/lib/postgres"
+import { query } from "@/lib/pg"
 
 // Admin invoices route uses DB and token verification; force Node runtime and dynamic
 export const runtime = 'nodejs'

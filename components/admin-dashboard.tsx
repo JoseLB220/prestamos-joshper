@@ -13,6 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ProfessionalInvoice from "./professional-invoice"
 import AdminApplyPayment from "@/components/admin-apply-payment"
 import ProjectPrompt from '@/components/ui/project-prompt'
+import AdminOverviewTab from "@/components/admin/admin-overview-tab"
+import AdminLoansTab from "@/components/admin/admin-loans-tab"
+import AdminCompaniesTab from "@/components/admin/admin-companies-tab"
+import AdminUsersTab from "@/components/admin/admin-users-tab"
+import AdminPaymentsTab from "@/components/admin/admin-payments-tab"
+import AdminInvoicesSection from "@/components/admin/admin-invoices-section"
 import {
   BarChart3,
   FileText,
@@ -1815,7 +1821,7 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                     loanDetails.documento_foto
                       ? (loanDetails.documento_foto.startsWith("http") || loanDetails.documento_foto.startsWith("data:")
                           ? loanDetails.documento_foto
-                          : `http://localhost:8081${loanDetails.documento_foto.startsWith('/') ? loanDetails.documento_foto : `/${loanDetails.documento_foto}`}`)
+                          : `${loanDetails.documento_foto.startsWith('/') ? loanDetails.documento_foto : `/uploads/${loanDetails.documento_foto}`}`)
                       : "/placeholder.svg"
                   }
                   alt="Documento"
@@ -2037,718 +2043,85 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
       {/* Content */}
       <div className="content-container">
         {activeTab === "overview" && (
-          <div className="animate-fade-in">
-            {/* Statistics Cards */}
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="stat-value">{statistics.totals.users}</p>
-                    <p className="stat-label">Total Usuarios</p>
-                  </div>
-                  <Users className="h-8 w-8 text-blue-500" />
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="stat-value">{statistics.totals.loans}</p>
-                    <p className="stat-label">Total Préstamos</p>
-                  </div>
-                  <FileText className="h-8 w-8 text-green-500" />
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="stat-value">{statistics.totals.companies}</p>
-                    <p className="stat-label">Total Empresas</p>
-                  </div>
-                  <Building className="h-8 w-8 text-purple-500" />
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="stat-value" style={{ fontSize: "1.5rem" }}>
-                      {formatCurrency(statistics.totals.totalAmount)}
-                    </p>
-                    <p className="stat-label">Monto Total</p>
-                  </div>
-                  <DollarSign className="h-8 w-8 text-orange-500" />
-                </div>
-              </div>
-            </div>
-
-            {/* Distribution Cards */}
-            <div style={{ marginTop: "2rem" }}>
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Distribución por Estado</h2>
-              <div className="card-grid">
-                <div className="feature-card white">
-                  <div className="feature-card-header">
-                    <div className="feature-card-icon">
-                      <FileText size={20} />
-                    </div>
-                    <h3 className="feature-card-title">Préstamos por Estado</h3>
-                  </div>
-                  <div style={{ marginTop: "1rem" }}>
-                    {statistics.distribution.loans.map((item: any) => (
-                      <div key={item.estado} className="flex justify-between items-center mb-2">
-                        <span className="capitalize text-gray-700">{item.estado}</span>
-                        <span className={`status-badge ${getStatusBadge(item.estado)}`}>{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="feature-card white">
-                  <div className="feature-card-header">
-                    <div className="feature-card-icon">
-                      <Building size={20} />
-                    </div>
-                    <h3 className="feature-card-title">Empresas por Estado</h3>
-                  </div>
-                  <div style={{ marginTop: "1rem" }}>
-                    {statistics.distribution.companies.map((item: any) => (
-                      <div key={item.estado} className="flex justify-between items-center mb-2">
-                        <span className="capitalize text-gray-700">{item.estado}</span>
-                        <span className={`status-badge ${getStatusBadge(item.estado)}`}>{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="feature-card primary">
-                  <div className="feature-card-header">
-                    <div className="feature-card-icon">
-                      <TrendingUp size={20} />
-                    </div>
-                    <h3 className="feature-card-title">Crecimiento</h3>
-                  </div>
-                  <p className="feature-card-description">
-                    El sistema está funcionando correctamente con {statistics.totals.users} usuarios activos y{" "}
-                    {statistics.totals.loans} solicitudes procesadas.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Statistics Cards */}
-            <div style={{ marginTop: "2rem" }}>
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Estadísticas de Pagos</h2>
-              <div className="card-grid">
-                <div className="feature-card white">
-                  <div className="feature-card-header">
-                    <div className="feature-card-icon">
-                      <CheckCircle size={20} />
-                    </div>
-                    <h3 className="feature-card-title">Pagos a Tiempo</h3>
-                  </div>
-                  <div style={{ marginTop: "1rem" }}>
-                    <div className="text-3xl font-bold text-green-600 mb-2">
-                      {statistics.payments?.onTime || 0}
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Pagos realizados dentro del plazo establecido
-                    </p>
-                  </div>
-                </div>
-
-                <div className="feature-card white">
-                  <div className="feature-card-header">
-                    <div className="feature-card-icon">
-                      <Clock size={20} />
-                    </div>
-                    <h3 className="feature-card-title">Pagos Pendientes</h3>
-                  </div>
-                  <div style={{ marginTop: "1rem" }}>
-                    <div className="text-3xl font-bold text-yellow-600 mb-2">
-                      {statistics.payments?.pending || 0}
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Pagos esperando confirmación del administrador
-                    </p>
-                  </div>
-                </div>
-
-                <div className="feature-card white">
-                  <div className="feature-card-header">
-                    <div className="feature-card-icon">
-                      <X size={20} />
-                    </div>
-                    <h3 className="feature-card-title">Pagos con Atraso</h3>
-                  </div>
-                  <div style={{ marginTop: "1rem" }}>
-                    <div className="text-3xl font-bold text-red-600 mb-2">
-                      {statistics.payments?.overdue || 0}
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Pagos realizados después de la fecha límite
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AdminOverviewTab statistics={statistics} onNavigateTab={setActiveTab} />
         )}
 
         {activeTab === "loans" && (
-          <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Gestión de Solicitudes de Préstamo</h2>
-            <div className="w-full overflow-x-auto bg-white rounded-lg border">
-              <table className="w-full min-w-[900px]">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Usuario
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Documento
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Empresa
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Monto
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {loanApplications.map((loan: any) => (
-                    <tr key={loan.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {loan.nombre} {loan.apellido}
-                          </div>
-                          <div className="text-sm text-gray-500">{loan.email}</div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-gray-900">{loan.documento}</div>
-                          <div className="text-sm text-gray-500">Usuario: {loan.user_document}</div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-gray-900">{loan.empresa}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-gray-900">{formatCurrency(loan.monto)}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-gray-900">{formatDate(loan.created_at)}</td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(loan.estado)}`}
-                        >
-                          {loan.estado.charAt(0).toUpperCase() + loan.estado.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex gap-2">
-                          <button
-                            className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 hover:shadow-lg hover:scale-105 transition-all"
-                            onClick={() => viewDetails(loan.id, "loan")}
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 hover:shadow-lg hover:scale-105 transition-all"
-                            onClick={() => openComments(loan)}
-                          >
-                            <MessageSquare size={14} />
-                          </button>
-                          {loan.estado === "pendiente" && (
-                            <>
-                              <button
-                                className="inline-flex items-center px-2 py-1 border border-transparent rounded text-xs font-medium text-white bg-green-600 hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all"
-                                onClick={() => updateLoanStatus(loan.id, "aprobado")}
-                              >
-                                <Check size={14} />
-                              </button>
-                              <button
-                                className="inline-flex items-center px-2 py-1 border border-transparent rounded text-xs font-medium text-white bg-red-600 hover:bg-red-700 hover:shadow-lg hover:scale-105 transition-all"
-                                onClick={() => updateLoanStatus(loan.id, "rechazado")}
-                              >
-                                <X size={14} />
-                              </button>
-                            </>
-                          )}
-                          {loan.estado !== "pendiente" && (
-                            <button
-                              className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 hover:shadow-lg hover:scale-105 transition-all"
-                              onClick={() => updateLoanStatus(loan.id, "pendiente")}
-                            >
-                              <RotateCcw size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <AdminLoansTab
+            loanApplications={loanApplications}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            getStatusBadge={getStatusBadge}
+            onViewDetails={(id, type) => viewDetails(id, type)}
+            onOpenComments={(loan) => openComments(loan)}
+            onUpdateStatus={(id, status) => updateLoanStatus(id, status)}
+          />
         )}
 
         {activeTab === "companies" && (
-          <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Gestión de Empresas</h2>
-            <div className="data-table">
-              <table style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th>Empresa</th>
-                    <th>RNC</th>
-                    <th>Representante</th>
-                    <th>Empleados</th>
-                    <th>Sector</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {companies.map((company: any) => (
-                    <tr key={company.id}>
-                      <td>
-                        <div>
-                          <div className="font-medium">{company.nombre_empresa}</div>
-                          <div className="text-sm text-gray-500">{company.correo}</div>
-                        </div>
-                      </td>
-                      <td>{company.rnc}</td>
-                      <td>{company.representante}</td>
-                      <td>{company.empleados}</td>
-                      <td>{company.sector}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusBadge(company.estado)}`}>
-                          {company.estado.charAt(0).toUpperCase() + company.estado.slice(1)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button
-                            className="btn btn-outline hover:shadow-lg hover:scale-105 transition-all"
-                            style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                            onClick={() => viewDetails(company.id, "company")}
-                          >
-                            <Eye size={14} />
-                          </button>
-                          {company.estado === "pendiente" && (
-                            <>
-                          <button
-                            className="btn btn-primary hover:shadow-lg hover:scale-105 transition-all"
-                            style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                            onClick={() => updateCompanyStatus(company.id, "aprobado")}
-                          >
-                            <Check size={14} />
-                          </button>
-                              <button
-                                className="btn btn-secondary hover:shadow-lg hover:scale-105 transition-all"
-                                style={{ padding: "0.5rem", fontSize: "0.75rem", background: "#ef4444" }}
-                                onClick={() => updateCompanyStatus(company.id, "rechazado")}
-                              >
-                                <X size={14} />
-                              </button>
-                            </>
-                          )}
-                          {company.estado !== "pendiente" && (
-                          <button
-                            className="btn btn-outline hover:shadow-lg hover:scale-105 transition-all"
-                            style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                            onClick={() => updateCompanyStatus(company.id, "pendiente")}
-                          >
-                            <RotateCcw size={14} />
-                          </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <AdminCompaniesTab
+            companies={companies}
+            onApproveCompany={(id) => updateCompanyStatus(id, "aprobado")}
+            onRejectCompany={(id) => updateCompanyStatus(id, "rechazado")}
+          />
         )}
 
         {activeTab === "users" && (
-          <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Gestión de Usuarios</h2>
-            <div className="data-table">
-              <table style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th>Usuario</th>
-                    <th>Documento</th>
-                    <th>Teléfono</th>
-                    <th>Permisos</th>
-                    <th>Registro</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((userData: any) => (
-                    <tr key={userData.id}>
-                      <td>
-                        <div>
-                          <div className="font-medium">
-                            {userData.nombre} {userData.apellido}
-                          </div>
-                          <div className="text-sm text-gray-500">{userData.email}</div>
-                        </div>
-                      </td>
-                      <td>{userData.cedula_pasaporte}</td>
-                      <td>{userData.numero_celular}</td>
-                      <td>
-                        <div className="flex flex-wrap gap-1">
-                          {userData.is_admin && (
-                            <span className="status-badge" style={{ background: "#fee2e2", color: "#991b1b" }}>
-                              Admin
-                            </span>
-                          )}
-                          {userData.can_request_loans && (
-                            <span className="status-badge" style={{ background: "#dbeafe", color: "#1e40af" }}>
-                              Préstamos
-                            </span>
-                          )}
-                          {userData.can_associate_companies && (
-                            <span className="status-badge" style={{ background: "#d1fae5", color: "#065f46" }}>
-                              Empresas
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td>{formatDate(userData.created_at)}</td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button
-                            className="btn btn-outline hover:shadow-lg hover:scale-105 transition-all"
-                            style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                            onClick={() => fetchUserDetails(userData.id)}
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            className="btn btn-outline hover:shadow-lg hover:scale-105 transition-all"
-                            style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                            onClick={() => fetchUserLoans(userData.id)}
-                          >
-                            <FileText size={14} />
-                          </button>
-                          <button
-                            className="btn btn-outline hover:shadow-lg hover:scale-105 transition-all"
-                            style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                            onClick={() => {
-                              setResetPasswordUser(userData)
-                              setIsResetPasswordOpen(true)
-                            }}
-                          >
-                            <Key size={14} />
-                          </button>
-                          <button
-                            className="btn btn-outline hover:shadow-lg hover:scale-105 transition-all"
-                            style={{
-                              padding: "0.5rem",
-                              fontSize: "0.75rem",
-                              background: userData.is_admin ? "#ef4444" : "#10b981",
-                              color: "white",
-                            }}
-                            onClick={() => toggleAdminStatus(userData.id, userData.is_admin)}
-                          >
-                            {userData.is_admin ? <UserCheck size={14} /> : <Shield size={14} />}
-                          </button>
-                          {userData.id !== user.id && (
-                            <button
-                              className="btn btn-secondary hover:shadow-lg hover:scale-105 transition-all"
-                              style={{ padding: "0.5rem", fontSize: "0.75rem", background: "#ef4444" }}
-                              onClick={() => deleteUser(userData.id)}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <AdminUsersTab
+            users={users}
+            currentUserId={user.id}
+            formatDate={formatDate}
+            onViewUserDetails={(id) => fetchUserDetails(id)}
+            onViewUserLoans={(id) => fetchUserLoans(id)}
+            onResetPassword={(userData) => {
+              setResetPasswordUser(userData)
+              setIsResetPasswordOpen(true)
+            }}
+            onToggleAdmin={(id, currentStatus) => toggleAdminStatus(id, currentStatus)}
+            onDeleteUser={(id) => deleteUser(id)}
+          />
         )}
 
         {activeTab === "payments" && (
-          <div className="animate-fade-in">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Gestión de Préstamos y Pagos</h2>
-              <Button
-                onClick={() => setIsAddPaymentOpen(true)}
-                className="bg-green-600 hover:bg-green-700 flex items-center gap-2 hover:shadow-lg hover:scale-105 transition-all"
-              >
-                <Plus size={16} />
-                Agregar Pago Manual
-              </Button>
-            </div>
-
-            <Tabs defaultValue="pending" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="pending" className="flex items-center gap-2">
-                  <Clock size={16} />
-                  Pagos Pendientes ({pendingPayments.length})
-                </TabsTrigger>
-                <TabsTrigger value="active" className="flex items-center gap-2">
-                  <CreditCard size={16} />
-                  Préstamos Activos ({activeLoans.length})
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="pending" className="mt-4">
-                {pendingPayments.length === 0 ? (
-                  <div className="feature-card white" style={{ textAlign: "center", padding: "3rem" }}>
-                    <CheckCircle size={48} className="mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay pagos pendientes</h3>
-                    <p className="text-gray-600">Los pagos pendientes de confirmación aparecerán aquí</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <div className="data-table">
-                      <table style={{ width: "100%", minWidth: "800px" }}>
-                        <thead>
-                          <tr>
-                            <th>Usuario</th>
-                            <th>Monto</th>
-                            <th>Tipo</th>
-                            <th>Fecha</th>
-                            <th>Recibo</th>
-                            <th>Notas</th>
-                            <th>Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pendingPayments.map((payment: any) => (
-                            <tr key={payment.id}>
-                              <td>
-                                <div>
-                                  <div className="font-medium">
-                                    {payment.user_name} {payment.user_lastname}
-                                  </div>
-                                  <div className="text-sm text-gray-500">{payment.user_email}</div>
-                                </div>
-                              </td>
-                              <td>{formatCurrency(payment.amount ?? payment.payment_amount ?? 0)}</td>
-                              <td>
-                                <span
-                                  className={`status-badge ${payment.payment_type === "installment" ? "status-approved" : "status-pending"}`}
-                                >
-                                  {payment.payment_type === "installment" ? "Cuota" : "Abono Extra"}
-                                </span>
-                              </td>
-                              <td>{formatDate(payment.payment_date)}</td>
-                              <td>{payment.receipt_number}</td>
-                              <td>
-                                <div className="max-w-xs truncate" title={payment.notes}>
-                                  {payment.notes || "Sin notas"}
-                                </div>
-                              </td>
-                              <td>
-                                <div className="flex gap-2">
-                                  <button
-                                    className="btn btn-primary hover:shadow-lg hover:scale-105 transition-all"
-                                    style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                                    onClick={() => {
-                                      // normalize the payment object minimally for the confirm modal
-                                      setSelectedPaymentForConfirm({ ...payment, payment_amount: payment.amount ?? payment.payment_amount })
-                                      setIsPaymentConfirmOpen(true)
-                                    }}
-                                  >
-                                    <Check size={14} />
-                                  </button>
-                                  <button
-                                    className="btn btn-danger hover:shadow-lg hover:scale-105 transition-all"
-                                    style={{ padding: "0.5rem", fontSize: "0.75rem", backgroundColor: "#dc2626", color: "white" }}
-                                    onClick={() => {
-                                      setSelectedPaymentForReject({ ...payment, payment_amount: payment.amount ?? payment.payment_amount })
-                                      setIsPaymentRejectOpen(true)
-                                    }}
-                                  >
-                                    <X size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="active" className="mt-4">
-                {activeLoans.length === 0 ? (
-                  <div className="feature-card white" style={{ textAlign: "center", padding: "3rem" }}>
-                    <CreditCard size={48} className="mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay préstamos activos</h3>
-                    <p className="text-gray-600">Los préstamos aparecerán aquí cuando sean aprobados</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <div className="data-table">
-                      <table style={{ width: "100%", minWidth: "1000px" }}>
-                     <thead>
-                          <tr>
-                            <th>Usuario</th>
-                            <th>Monto Original</th>
-                            <th>Monto Restante</th>
-                            <th>Cuota</th>
-                            <th>Cuotas Restantes</th>
-                            <th>Próximo Pago</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activeLoans.map((loan: any) => (
-                            <tr key={loan.id}>
-                              <td>
-                                <div>
-                                  <div className="font-medium">
-                                    {loan.user_name} {loan.user_lastname}
-                                  </div>
-                                  <div className="text-sm text-gray-500">{loan.user_email}</div>
-                                </div>
-                              </td>
-                              <td>{formatCurrency(loan.original_amount)}</td>
-                              <td>{formatCurrency(loan.remaining_amount)}</td>
-                              <td>{formatCurrency(loan.installment_amount)}</td>
-                              <td>
-                                <div className="flex items-center gap-2">
-                                  <span>{loan.remaining_installments}</span>
-                                  <span className="text-sm text-gray-500">/ {loan.total_installments}</span>
-                                </div>
-                              </td>
-                              <td>{formatDate(loan.next_payment_date)}</td>
-                              <td>
-                                <span className={`status-badge ${getStatusBadge(loan.status)}`}>
-                                  {loan.status === "active"
-                                    ? "Activo"
-                                    : loan.status === "completed"
-                                      ? "Completado"
-                                      : loan.status === "overdue"
-                                        ? "Vencido"
-                                        : loan.status}
-                                </span>
-                              </td>
-                              <td>
-                                <div className="flex gap-2">
-                                  
-                                  {/* Ver Perfil (abre modal de usuario si user id está disponible) */}
-                                  {(
-                                    loan.user_id || loan.userId || loan.user_id_from_api || loan.user_id
-                                  ) && (
-                                    <button
-                                      className="btn btn-outline hover:shadow-lg hover:scale-105 transition-all"
-                                      style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                                      onClick={() => {
-                                        const uid = loan.user_id ?? loan.userId ?? loan.user_id_from_api ?? loan.user_id
-                                        if (uid) viewDetails(Number(uid), "user")
-                                      }}
-                                    >
-                                      Perfil
-                                    </button>
-                                  )}
-
-                                  <button
-                                    className="btn btn-outline"
-                                    style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                                    onClick={() => {
-                                      setSelectedLoanForPayment(loan)
-                                      setIsAddPaymentOpen(true)
-                                    }}
-                                  >
-                                    <Plus size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
+          <AdminPaymentsTab
+            pendingPayments={pendingPayments}
+            activeLoans={activeLoans}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            getStatusBadge={getStatusBadge}
+            onOpenAddPayment={() => setIsAddPaymentOpen(true)}
+            onConfirmPayment={(payment) => {
+              setSelectedPaymentForConfirm({ ...payment, payment_amount: payment.amount ?? payment.payment_amount })
+              setIsPaymentConfirmOpen(true)
+            }}
+            onRejectPayment={(payment) => {
+              setSelectedPaymentForReject({ ...payment, payment_amount: payment.amount ?? payment.payment_amount })
+              setIsPaymentRejectOpen(true)
+            }}
+            onSelectLoanForPayment={(loan) => {
+              setSelectedLoanForPayment(loan)
+              setIsAddPaymentOpen(true)
+            }}
+            onViewUserDetails={(uid) => viewDetails(uid, "user")}
+          />
         )}
       </div>
 
-    {/* Facturas Recientes */}
-    <div className="mt-8">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Facturas Recientes</h3>
-        {user.is_admin && (
-          <div className="flex items-center gap-2">
-            <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => {
-                fetchAdminReceipts()
-                setIsReceiptsOpen(true)
-              }}
-            >
-              Recibos de Cobros Manuales
-            </Button>
-          </div>
-        )}
-      </div>
-      <div className="overflow-x-auto">
-        <div className="data-table">
-          <table style={{ width: "100%", minWidth: "800px" }}>
-            <thead>
-              <tr>
-                <th>Factura #</th>
-                <th>Cliente</th>
-                <th>Monto</th>
-                <th>Fecha</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentInvoices.map((invoice: any) => (
-                <tr key={invoice.id}>
-                  <td>{invoice.invoice_number}</td>
-                  <td>{`${invoice.user_name} ${invoice.user_lastname}`}</td>
-                  <td>{formatCurrency(invoice.amount ?? invoice.payment_amount ?? 0)}</td>
-                  <td>{formatDate(invoice.payment_date ?? invoice.date ?? invoice.created_at ?? invoice.createdAt)}</td>
-                  <td>
-                    <button
-                      className="btn btn-outline"
-                      style={{ padding: "0.5rem", fontSize: "0.75rem" }}
-                      onClick={() => {
-                        const inv = normalizeInvoice(invoice)
-                        setSelectedInvoice(inv)
-                        setSelectedInvoiceData(inv)
-                        setIsInvoiceModalOpen(true)
-                      }}
-                    >
-                      Ver Factura
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      {/* Facturas Recientes */}
+      <AdminInvoicesSection
+        recentInvoices={recentInvoices}
+        isAdmin={Boolean(user.is_admin)}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
+        onFetchReceipts={fetchAdminReceipts}
+        onOpenReceiptsModal={() => setIsReceiptsOpen(true)}
+        onViewInvoice={(invoice) => {
+          const inv = normalizeInvoice(invoice)
+          setSelectedInvoice(inv)
+          setSelectedInvoiceData(inv)
+          setIsInvoiceModalOpen(true)
+        }}
+      />
 
       {/* ---------------------------
           Enhanced Modals System

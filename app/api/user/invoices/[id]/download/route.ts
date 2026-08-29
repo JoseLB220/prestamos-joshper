@@ -10,7 +10,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ message: "Token requerido" }, { status: 401 })
     }
 
-    const decoded = verifyToken(token)
+    const decoded = await verifyToken(token)
     if (!decoded) {
       return NextResponse.json({ message: "Token inválido" }, { status: 401 })
     }
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Verify invoice belongs to user
     const invoiceResult = await query("SELECT * FROM invoices WHERE id = $1 AND user_id = $2", [
       invoiceId,
-      decoded.userId,
+      decoded.id,
     ])
 
     if (invoiceResult.rows.length === 0) {

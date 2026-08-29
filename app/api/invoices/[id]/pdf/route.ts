@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth"
-import pool from "@/lib/postgres"
+import pool from "@/lib/pg"
 import PDFDocument from "pdfkit"
 import path from "path"
 import fs from "fs"

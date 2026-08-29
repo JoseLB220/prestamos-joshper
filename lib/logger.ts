@@ -1,4 +1,14 @@
 import winston from 'winston';
+import fs from 'fs';
+
+// Asegurar que el directorio de logs exista
+try {
+  if (!fs.existsSync('logs')) {
+    fs.mkdirSync('logs', { recursive: true });
+  }
+} catch {
+  // Ignorar en entornos de solo lectura
+}
 
 // Formato personalizado para desarrollo
 const devFormat = winston.format.combine(

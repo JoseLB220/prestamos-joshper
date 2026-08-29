@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/pg"
 import { requireAdmin } from "@/lib/auth"
-import bcrypt from "bcrypt"
+import bcrypt from "bcryptjs"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {

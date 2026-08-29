@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 // Filepath: app/api/invoices/[id]/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth"
-import pool from "@/lib/postgres"
+import pool from "@/lib/pg"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {

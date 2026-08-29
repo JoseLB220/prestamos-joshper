@@ -38,15 +38,13 @@ export async function GET(request: NextRequest) {
     try {
       const docFoto = profile.documento_foto
       if (typeof docFoto === 'string' && docFoto.startsWith('http://localhost:8081/uploads/')) {
-        // For images served by the images service, we can't easily check file existence
-        // from the app container, so we'll assume they exist or handle errors in frontend
-        // Keep the URL as-is
-      } else if (typeof docFoto === 'string' && docFoto.startsWith('/uploads')) {
-        const filePath = path.join(process.cwd(), 'public', docFoto.replace(/^\//, ''))
+        // Normalize values written before uploads were served by the unified proxy.
+        profile.documento_foto = docFoto.replace('http://localhost:8081', '')
+      }
+      if (typeof profile.documento_foto === 'string' && profile.documento_foto.startsWith('/uploads/')) {
+        const filePath = path.join(process.cwd(), profile.documento_foto.replace(/^\//, ''))
         try {
           await fs.promises.access(filePath, fs.constants.R_OK)
-          // file exists, convert to full URL for images service
-          profile.documento_foto = `http://localhost:8081${docFoto}`
         } catch (err) {
           // file missing — clear the field so frontend shows placeholder
           profile.documento_foto = null
@@ -122,7 +120,7 @@ export async function PUT(request: NextRequest) {
     if (data.documento_foto !== undefined) {
       documento_foto = data.documento_foto ? String(data.documento_foto).trim() : null
 
-      // If it's a data URL, try local save to images container
+      // If it's a data URL, save it to the shared uploads volume.
       if (documento_foto && documento_foto.startsWith('data:image')) {
         const saved = await saveDataUrlToPublicUploads(documento_foto, 'doc')
         if (saved) {
@@ -136,8 +134,8 @@ export async function PUT(request: NextRequest) {
           // else keep the data URL in DB as fallback
         }
       } else if (documento_foto && !documento_foto.startsWith('http') && !documento_foto.startsWith('/uploads')) {
-        // If it's just a filename, assume it's in uploads and convert to full URL
-        documento_foto = `http://localhost:8081/uploads/${documento_foto}`
+        // If it's just a filename, assume it belongs under uploads.
+        documento_foto = `/uploads/${documento_foto}`
       }
     }
 

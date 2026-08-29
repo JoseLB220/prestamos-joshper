@@ -88,16 +88,14 @@ export async function POST(request: NextRequest) {
 
     try {
       const fileBuffer = Buffer.from(await receiptFile.arrayBuffer())
-      // Save to Docker container volume instead of local public/uploads
-      // The joshper-images container will serve these files
+      // Save to the shared uploads volume served by the reverse proxy.
       const uploadDir = path.join(process.cwd(), "uploads", "receipts")
       await mkdir(uploadDir, { recursive: true })
       const fileExtension = receiptFile.name.split('.').pop() || 'bin'
       const uniqueFilename = `${nanoid()}.${fileExtension}`
       const filePath = path.join(uploadDir, uniqueFilename)
       await writeFile(filePath, fileBuffer)
-      // Return full URL for the images service
-      receiptUrl = `http://localhost:8081/uploads/receipts/${uniqueFilename}`
+      receiptUrl = `/uploads/receipts/${uniqueFilename}`
     } catch (fileError) {
       console.error("Error al guardar archivo:", fileError)
       await client.query("ROLLBACK")

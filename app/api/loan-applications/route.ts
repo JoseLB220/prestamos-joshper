@@ -1,11 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getUserFromRequest } from "@/lib/auth"
 import { query } from "@/lib/pg"
+import saveDataUrlToPublicUploads from '@/lib/saveDataUrl'
+import { logger } from "@/lib/logger"
+import { sendLoanApplicationReceivedEmail } from "@/lib/email"
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-import saveDataUrlToPublicUploads from '@/lib/saveDataUrl'
 
-// Define un tipo para los datos del préstamo
 interface LoanData {
   user_id: number
   nombre_completo: string
@@ -54,24 +56,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Frecuencia inválida. Usa 'mensual' o 'quincenal'" }, { status: 400 })
     }
 
-    // Validar tipo de cuenta (convertir a minúscula para la validación)
     if (!["ahorros", "corriente"].includes(body.tipo_cuenta.toLowerCase())) {
       return NextResponse.json({ error: "Tipo de cuenta inválido. Usa 'Ahorros' o 'Corriente'" }, { status: 400 })
     }
 
-    // Construir nombre_completo con manejo de valores undefined
     const nombreCompleto = `${user.nombre || ''} ${user.apellido || ''}`.trim()
-
-    // Si no hay nombre completo, usar el email como fallback
     const finalNombreCompleto = nombreCompleto || user.email || 'Usuario'
 
-    // Handle documento_foto if provided (data URL)
     let documentoFotoUrl: string | null = null
     if (body.documento_foto && typeof body.documento_foto === 'string' && body.documento_foto.startsWith('data:image')) {
       documentoFotoUrl = await saveDataUrlToPublicUploads(body.documento_foto, 'doc')
     }
 
-    // Convertir campos numéricos
     const loanData: LoanData = {
       user_id: user.id,
       nombre_completo: finalNombreCompleto,
@@ -86,10 +82,9 @@ export async function POST(request: NextRequest) {
       plazo: Number(body.plazo),
       cuenta_banco: body.cuenta_banco,
       nombre_banco: body.nombre_banco,
-      tipo_cuenta: body.tipo_cuenta.toLowerCase(), // Convertir a minúscula
+      tipo_cuenta: body.tipo_cuenta.toLowerCase(),
     }
 
-    // Verificar que las conversiones numéricas sean válidas
     const numericFields = ["tiempo_empresa", "sueldo", "prestaciones", "monto", "plazo"]
     for (const field of numericFields) {
       if (isNaN(loanData[field as keyof LoanData] as number)) {
@@ -130,9 +125,22 @@ export async function POST(request: NextRequest) {
       [user.id]
     )
 
+    logger.info(`Solicitud de préstamo creada exitosamente por usuario ${user.id} (Monto: DOP ${loanData.monto})`)
+
+    // Enviar email transaccional de confirmación
+    if (user.email) {
+      sendLoanApplicationReceivedEmail({
+        to: user.email,
+        nombre: user.nombre || user.email,
+        monto: loanData.monto,
+        plazo: loanData.plazo,
+        frecuencia: loanData.frecuencia,
+      }).catch((err) => logger.error("Error al enviar email de solicitud:", err))
+    }
+
     return NextResponse.json(result.rows[0], { status: 201 })
-  } catch (error) {
-    console.error("Error al procesar la solicitud de préstamo:", error)
+  } catch (error: any) {
+    logger.error("Error al procesar la solicitud de préstamo:", { error: error.message || error, stack: error.stack })
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
@@ -160,8 +168,8 @@ export async function GET(request: NextRequest) {
     )
 
     return NextResponse.json(result.rows)
-  } catch (error) {
-    console.error("Error al obtener solicitudes:", error)
+  } catch (error: any) {
+    logger.error("Error al obtener solicitudes de préstamo:", { error: error.message || error, stack: error.stack })
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }

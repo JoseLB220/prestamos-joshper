@@ -9,7 +9,7 @@ export default async function About() {
 
   let user = null
   if (token) {
-    const decoded = verifyToken(token)
+    const decoded = await verifyToken(token)
     if (decoded) {
       user = decoded
     }

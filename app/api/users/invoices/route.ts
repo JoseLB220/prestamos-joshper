@@ -1,7 +1,7 @@
 // Filepath: app/api/user/invoices/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth"
-import pool from "@/lib/postgres"
+import pool from "@/lib/pg"
 
 // This route accesses the database and checks authentication via cookies/tokens.
 export const runtime = 'nodejs'

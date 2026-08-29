@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth" // Cambiado a requireAdmin
-import pool from "@/lib/postgres"
+import pool from "@/lib/pg"
 
 // Admin recent invoices uses DB and auth; ensure Node runtime and dynamic behavior
 export const runtime = 'nodejs'
