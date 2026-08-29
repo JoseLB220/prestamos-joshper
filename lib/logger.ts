@@ -26,6 +26,32 @@ const devFormat = winston.format.combine(
   })
 );
 
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY)
+
+const transports: winston.transport[] = [
+  new winston.transports.Console()
+]
+
+if (!isServerless) {
+  try {
+    transports.push(
+      new winston.transports.File({
+        filename: 'logs/error.log',
+        level: 'error',
+        maxsize: 5242880,
+        maxFiles: 5,
+      }),
+      new winston.transports.File({
+        filename: 'logs/combined.log',
+        maxsize: 5242880,
+        maxFiles: 5,
+      })
+    )
+  } catch {
+    // Entorno de solo lectura
+  }
+}
+
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: process.env.NODE_ENV === 'production'
@@ -36,20 +62,7 @@ export const logger = winston.createLogger({
       )
     : devFormat,
   defaultMeta: { service: 'joshper-api' },
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({
-      filename: 'logs/error.log',
-      level: 'error',
-      maxsize: 5242880,
-      maxFiles: 5,
-    }),
-    new winston.transports.File({
-      filename: 'logs/combined.log',
-      maxsize: 5242880,
-      maxFiles: 5,
-    }),
-  ],
+  transports,
 });
 
 export const auditLogger = winston.createLogger({
@@ -58,11 +71,14 @@ export const auditLogger = winston.createLogger({
     winston.format.timestamp(),
     winston.format.json()
   ),
-  transports: [
-    new winston.transports.File({
-      filename: 'logs/audit.log',
-      maxsize: 10485760,
-      maxFiles: 10,
-    })
-  ]
+  transports: isServerless
+    ? [new winston.transports.Console()]
+    : [
+        new winston.transports.Console(),
+        new winston.transports.File({
+          filename: 'logs/audit.log',
+          maxsize: 10485760,
+          maxFiles: 10,
+        })
+      ]
 });

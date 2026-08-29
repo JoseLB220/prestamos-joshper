@@ -92,8 +92,11 @@ export async function POST(request: NextRequest) {
     )
   } catch (error: any) {
     logger.error("Error en registro:", { error: error.message || error, stack: error.stack })
+    const errorMessage = error?.message?.includes("connect")
+      ? "Error de conexión con la base de datos. Verifica DATABASE_URL."
+      : (error?.message || "Error interno del servidor. Por favor intenta nuevamente.")
     return NextResponse.json(
-      { error: "Error interno del servidor. Por favor intenta nuevamente." },
+      { error: errorMessage },
       { status: 500 }
     )
   }
