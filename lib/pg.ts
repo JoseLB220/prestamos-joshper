@@ -17,10 +17,15 @@ function ensurePool(): Pool {
     )
   }
 
-  const isRemote = conn.includes("supabase.co") || conn.includes("supabase.com") || conn.includes("sslmode=require") || process.env.NODE_ENV === "production"
+  const isRemote = conn.includes("supabase.co") || conn.includes("supabase.com") || conn.includes("pooler.supabase") || conn.includes("sslmode=require") || process.env.NODE_ENV === "production"
+
+  // Strip sslmode from connection string to avoid conflicts with the Pool ssl option.
+  // The pg library can misinterpret sslmode=require and attempt full certificate
+  // verification, which fails with Supabase's self-signed certificates.
+  const cleanConn = conn.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '')
 
   const pool = new Pool({
-    connectionString: conn,
+    connectionString: cleanConn,
     max: parseInt(process.env.DB_POOL_MAX || "20", 10), // Conexiones concurrentes máximas
     idleTimeoutMillis: 30000, // Cerrar conexiones inactivas tras 30s
     connectionTimeoutMillis: 10000, // Timeout para obtener conexión de 10s
