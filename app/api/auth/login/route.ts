@@ -4,6 +4,9 @@ import { comparePassword, generateToken } from "@/lib/auth"
 import { userLoginSchema, formatZodError } from "@/lib/validations/schemas"
 import { logger } from "@/lib/logger"
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()

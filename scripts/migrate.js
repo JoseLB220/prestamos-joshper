@@ -29,7 +29,7 @@ loadEnv();
 
 const connectionString =
   process.env.DATABASE_URL ||
-  `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5433'}/${process.env.DB_NAME || 'joshperdb'}`;
+  `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'joshperdb'}`;
 
 const pool = new Pool({
   connectionString,
